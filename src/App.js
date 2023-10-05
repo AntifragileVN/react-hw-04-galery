@@ -1,7 +1,7 @@
-import { Component } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import api, { fetchPhoto } from './services/photo-api';
+import api from './services/photo-api';
 import './App.css';
 
 import SearchBar from './Components/Searchbar/Searchbar';
@@ -9,120 +9,94 @@ import ImageGallery from './Components/ImageGallery/ImageGallery';
 import Modal from './Components/Modal/Modal';
 import Loader from './Components/Loader/Loader';
 
-class App extends Component {
-	state = {
-		photoName: '',
-		currentImage: '',
-		currentPage: 1,
-		showModal: false,
-		images: [],
-		error: null,
-		imageQuantity: 0,
-		status: '',
-		isLoading: false,
-	};
+export default function App() {
+	const [query, setQuery] = useState('');
+	const [currentImage, setCurrentImage] = useState('');
+	const [showModal, setShowModal] = useState(false);
+	const [page, setPage] = useState(1);
 
-	async componentDidUpdate(_, prevState) {
-		const prevName = prevState.photoName;
-		const currentName = this.state.photoName;
-		const currentPage = this.state.currentPage;
+	const [images, setImages] = useState([]);
+	const [imageQuantity, setImageQuantity] = useState(0);
+	const [isLoading, setIsLoading] = useState(false);
 
-		if (prevName !== currentName) {
-			this.setState({
-				currentPage: 1,
-				imageQuantity: 0,
-				isLoading: true,
+	const prevQueryRef = useRef(query);
+	const prevPageRef = useRef(page);
+
+	useEffect(() => {
+		if (query !== '' && query !== prevQueryRef.current) {
+			console.log('use efect 1');
+			setPage(1);
+
+			setImageQuantity(0);
+			setIsLoading(true);
+
+			api.fetchPhoto(query, page).then(({ hits, totalHits }) => {
+				setImages(hits);
+				setImageQuantity(totalHits);
+				setIsLoading(false);
+
+				if (hits.length === 0) {
+					toast.error('There is no images with such name');
+					return;
+				}
 			});
+		}
+		prevQueryRef.current = query;
+	}, [page, query]);
 
-			const { hits, totalHits } = await fetchPhoto(
-				currentName,
-				currentPage
-			);
+	useEffect(() => {
+		if (page !== 1 && page !== prevPageRef.current) {
+			console.log('use efect 2');
+			api.fetchPhoto(query, page).then(({ hits, totalHits }) => {
+				setImages((prevState) => {
+					return [...prevState, ...hits];
+				});
+				setImageQuantity(totalHits);
 
-			this.setState({
-				images: hits,
-				imageQuantity: totalHits,
-				isLoading: false,
+				if (hits.length === 0) {
+					toast.error('There is no images with such name');
+					return;
+				}
 			});
-
-			if (hits.length === 0) {
-				toast.error('There is no images with such name');
-				return;
-			}
 		}
+		prevPageRef.current = page;
+	}, [page, query]);
 
-		if (
-			prevState.currentPage !== this.state.currentPage &&
-			this.state.currentPage !== 1
-		) {
-			const { hits, totalHits } = await fetchPhoto(
-				currentName,
-				currentPage
-			);
-
-			this.setState((prevState) => ({
-				images: [...prevState.images, ...hits],
-				imageQuantity: totalHits,
-			}));
-		}
-	}
-
-	onImageClick = (currentImage) => {
-		this.setState({
-			currentImage,
-			showModal: true,
-		});
+	const onImageClick = (currentImage) => {
+		setCurrentImage(currentImage);
+		setShowModal(true);
 	};
 
-	onSubmit = (photoName) => {
-		this.setState({
-			photoName: photoName,
-		});
+	const onSearchSubmit = (query) => {
+		setQuery(query);
 	};
 
-	onLoadMoreButtonClick = () => {
-		this.setState((prevState) => ({
-			currentPage: prevState.currentPage + 1,
-		}));
+	const onLoadMoreButtonClick = () => {
+		setPage((prev) => prev + 1);
 	};
 
-	toggleModal = () => {
-		this.setState(({ showModal }) => ({
-			showModal: !showModal,
-		}));
+	const toggleModal = () => {
+		setShowModal(!showModal);
 	};
 
-	render() {
-		const {
-			photoName,
-			currentImage,
-			showModal,
-			images,
-			imageQuantity,
-			isLoading,
-		} = this.state;
+	return (
+		<div className="App">
+			<SearchBar onSearchSubmit={onSearchSubmit} />
+			{isLoading && <Loader />}
+			<ImageGallery
+				images={images}
+				onImageClick={onImageClick}
+				onLoadMoreButtonClick={onLoadMoreButtonClick}
+				imageQuantity={imageQuantity}
+			/>
 
-		return (
-			<div className="App">
-				<SearchBar photoName={photoName} onSubmit={this.onSubmit} />
-				{isLoading && <Loader />}
-				<ImageGallery
-					images={images}
-					onImageClick={this.onImageClick}
-					onLoadMoreButtonClick={this.onLoadMoreButtonClick}
-					imageQuantity={imageQuantity}
-				/>
+			{showModal && (
+				<Modal onClose={toggleModal}>
+					<img src={currentImage} alt="" />
+				</Modal>
+			)}
 
-				{showModal && (
-					<Modal onClose={this.toggleModal}>
-						<img src={currentImage} alt="" />
-					</Modal>
-				)}
-
-				<ToastContainer autoClose="3000" />
-			</div>
-		);
-	}
+			<ToastContainer autoClose="3000" />
+		</div>
+	);
 }
-
-export default App;

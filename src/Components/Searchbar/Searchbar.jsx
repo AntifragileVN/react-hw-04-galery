@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { Component, useState } from 'react';
 import { toast } from 'react-toastify';
 
 import {
@@ -9,50 +9,38 @@ import {
 	ButtonLabel,
 } from './Searchbar.styled';
 
-class SearchBar extends Component {
-	state = {
-		photoName: '',
+export default function SearchBar({ onSearchSubmit }) {
+	const [query, setQuery] = useState('');
+
+	const handleNameChange = (e) => {
+		setQuery(e.target.value.toLowerCase());
 	};
 
-	handleNameChange = (e) => {
-		this.setState({
-			photoName: e.target.value.toLowerCase(),
-		});
-	};
-
-	handleFormSubmit = (e) => {
+	const handleFormSubmit = (e) => {
 		e.preventDefault();
 
-		if (this.state.photoName.trim() === '') {
+		if (query.trim() === '') {
 			toast.error('You must write something');
 			return;
 		}
 
-		this.props.onSubmit(this.state.photoName);
-		this.setState({
-			photoName: '',
-		});
+		onSearchSubmit(query);
+		setQuery('');
 	};
 
-	render() {
-		const { photoName } = this.state;
-
-		return (
-			<Searchbar>
-				<SearchForm onSubmit={this.handleFormSubmit}>
-					<SearchButton>
-						<ButtonLabel type="submit">Search</ButtonLabel>
-					</SearchButton>
-					<FormInput
-						type="text"
-						name="photoName"
-						onChange={this.handleNameChange}
-						value={photoName}
-					/>
-				</SearchForm>
-			</Searchbar>
-		);
-	}
+	return (
+		<Searchbar>
+			<SearchForm onSubmit={handleFormSubmit}>
+				<SearchButton>
+					<ButtonLabel type="submit">Search</ButtonLabel>
+				</SearchButton>
+				<FormInput
+					type="text"
+					name="query"
+					onChange={handleNameChange}
+					value={query}
+				/>
+			</SearchForm>
+		</Searchbar>
+	);
 }
-
-export default SearchBar;
